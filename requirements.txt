@@ -1,0 +1,11 @@
+fastapi[all]
+motor
+pymongo
+boto3
+aiohttp
+sqlalchemy
+passlib
+bcrypt
+python-jose[cryptography]
+secure-smtplib
+Jinja2
