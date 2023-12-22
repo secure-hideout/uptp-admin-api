@@ -2,6 +2,9 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, Union
 from datetime import datetime
 from decimal import Decimal
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
 class User(BaseModel):
     user_id: Union[str, None] = None
     created_at: Union[datetime, None] = None

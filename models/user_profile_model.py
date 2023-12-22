@@ -33,6 +33,7 @@ class AgentTokenMapping(BaseModel):
 class StockItem(BaseModel):
     id: int
     name: str
+    instrument_type: str
 
 class AgentTokenMappingPayload(BaseModel):
     user_id: str

@@ -53,7 +53,7 @@ async def create_agent_token_mapping(mapping_data: user_profile_model.AgentToken
             for stock in mapping_data.stocks:
                 await conn.execute(
                     "INSERT INTO agent_token_mappings (user_id, financial_instrument_id, instrument_type) VALUES ($1, $2, $3) ON CONFLICT (user_id, financial_instrument_id, instrument_type) DO NOTHING",
-                    mapping_data.user_id, stock.id, "Stock"  # Assuming 'Stock' as instrument_type
+                    mapping_data.user_id, stock.id, stock.instrument_type  # Assuming 'Stock' as instrument_type
                 )
 
             # Commit transaction

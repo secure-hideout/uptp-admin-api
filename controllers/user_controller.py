@@ -229,3 +229,38 @@ async def api_get_agent_counts():
         row = await conn.fetchrow(query)
         return {"active_count": row['active_count'], "inactive_count": row['inactive_count']}
 
+async def forgot_password(request_data: users_model.ForgotPasswordRequest):
+    pool = await PostgresDB.get_pool()
+    async with pool.acquire() as conn:
+        user_email = request_data.email.lower()
+        existing_user = await conn.fetchrow("SELECT * FROM user_auths WHERE email = $1", user_email)
+        if not existing_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Generate a new random password
+        new_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(10))
+        hashed_password = hash_password(new_password)
+
+        # Update the user's password in the database
+        await conn.execute(
+            "UPDATE user_auths SET password = $1 WHERE email = $2",
+            hashed_password, user_email
+        )
+
+        # Send an email with the new password
+        try:
+            send_mail.send_email(
+                subject="UPTP Password Reset",
+                to_email=user_email,
+                from_email="connect@uptp.com",
+                smtp_server="smtp.gmail.com",
+                smtp_port=587,
+                smtp_user="hideoutprotocol@gmail.com",
+                smtp_password="bdbp opkn heyw ypaa",
+                template_name="password_reset.html",
+                password=new_password  # Include other required parameters for your email template
+            )
+            return {"message": "A new password has been sent to your email"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+

@@ -44,14 +44,14 @@ async def send_otp_email(email: str, otp: str):
     )
 
 @router.post("/send-otp")
-async def send_otp(email: str):
+async def send_otp(email: str, token: str = Depends(validate_token)):
     otp = generate_otp()
     otp_storage[email] = otp
     await send_otp_email(email, otp)
     return {"message": "OTP sent to email"}
 
 @router.post("/verify-otp")
-async def verify_otp(email: str, otp: str):
+async def verify_otp(email: str, otp: str, token: str = Depends(validate_token)):
     if email in otp_storage and otp_storage[email] == otp:
         del otp_storage[email]  # Remove the OTP after successful verification
         return {"message": "OTP verified successfully"}
@@ -62,6 +62,9 @@ async def verify_otp(email: str, otp: str):
 async def login(form_data: auth_model.LoginRequest):
     return await auth_controller.login_for_access_token(form_data)
 
+@router.post("/forgot-password")
+async def forgot_password_endpoint(request: users_model.ForgotPasswordRequest):
+    return await user_controller.forgot_password(request)
 
 @router.get("/users", response_model=List[users_model.UserGet])
 async def getAll(user_id: str = Query(None), token: str = Depends(validate_token)):
