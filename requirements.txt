@@ -9,3 +9,4 @@ bcrypt
 python-jose[cryptography]
 secure-smtplib
 Jinja2
+asyncpg
