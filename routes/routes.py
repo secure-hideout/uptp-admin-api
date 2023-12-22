@@ -81,7 +81,7 @@ async def get_users_by_filter(user_role: str = Query(None), is_active: str = Que
 
 
 @router.post("/user", response_model=users_model.UserGet)
-async def create_user(user_data: users_model.User, token: str = Depends(validate_token)):
+async def create_user(user_data: users_model.User):
     return await user_controller.create_user(user_data)
 
 
