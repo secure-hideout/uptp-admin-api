@@ -108,8 +108,7 @@ async def fetch_agent_token_mappings(user_id: str = Path(...), token: str = Depe
 
 
 @router.post("/agent-token-mapping")
-async def add_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMapping,
-                                  token: str = Depends(validate_token)):
+async def add_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMappingPayload):
     return await user_profile_controller.create_agent_token_mapping(mapping_data)
 
 

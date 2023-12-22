@@ -33,30 +33,49 @@ async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateM
         updated_user_profile = user_profile_model.UserProfile(**dict(row))
         return updated_user_profile
 
-async def create_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMapping):
-    query = """
-        INSERT INTO agent_token_mappings (user_id, financial_instrument_id, instrument_type)
-        VALUES ($1, $2, $3);
-    """
 
+async def create_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMappingPayload):
     pool = await PostgresDB.get_pool()
     async with pool.acquire() as conn:
         try:
-            await conn.execute(query, mapping_data.user_id,mapping_data.financial_instrument_id, mapping_data.instrument_type)
-            return {"message":"Record Added Successfully"}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+            # Start a transaction
+            transaction = conn.transaction()
+            await transaction.start()
 
+            # Delete existing records not in the new list
+            existing_ids = [item.id for item in mapping_data.stocks]
+            await conn.execute(
+                "DELETE FROM agent_token_mappings WHERE user_id = $1 AND financial_instrument_id != ALL($2)",
+                mapping_data.user_id, existing_ids
+            )
+
+            # Insert new records
+            for stock in mapping_data.stocks:
+                await conn.execute(
+                    "INSERT INTO agent_token_mappings (user_id, financial_instrument_id, instrument_type) VALUES ($1, $2, $3) ON CONFLICT (user_id, financial_instrument_id, instrument_type) DO NOTHING",
+                    mapping_data.user_id, stock.id, "Stock"  # Assuming 'Stock' as instrument_type
+                )
+
+            # Commit transaction
+            await transaction.commit()
+            return {"message": "Record Updated Successfully"}
+
+        except Exception as e:
+            await transaction.rollback()
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 async def get_agent_token_mappings_by_user_id(user_id: str) -> List[user_profile_model.AgentTokenMapping]:
+
     query = """
-        SELECT * FROM agent_token_mappings 
-        WHERE user_id = $1;
+        SELECT atm.user_id, atm.financial_instrument_id, atm.instrument_type, zi.tradingsymbol
+        FROM agent_token_mappings atm
+        LEFT JOIN zinstruments zi ON atm.financial_instrument_id = zi.zid
+        WHERE atm.user_id = $1;
     """
 
     pool = await PostgresDB.get_pool()
     async with pool.acquire() as conn:
         try:
             rows = await conn.fetch(query, user_id)
-            return [user_profile_model.AgentTokenMapping(**row) for row in rows]
+            return [user_profile_model.AgentTokenMapping(**dict(row)) for row in rows]
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

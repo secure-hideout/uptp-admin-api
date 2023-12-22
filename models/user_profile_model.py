@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Union
+from typing import Optional, Union, List
 from datetime import datetime
 class UserProfile(BaseModel):
     user_id: str
@@ -28,4 +28,13 @@ class AgentTokenMapping(BaseModel):
     user_id: str
     financial_instrument_id: int
     instrument_type: str
+    tradingsymbol: Union[str, None] = None
+
+class StockItem(BaseModel):
+    id: int
+    name: str
+
+class AgentTokenMappingPayload(BaseModel):
+    user_id: str
+    stocks: List[StockItem]
 
