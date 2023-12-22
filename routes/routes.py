@@ -152,3 +152,7 @@ async def add_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMap
 @router.get("/zinstruments", response_model=List[trades_model.ZInstrument])
 async def fetch_all_zinstruments(token: str = Depends(validate_token)):
     return await trades_controller.get_all_zinstruments()
+
+@router.post("/update-password")
+async def update_password_endpoint(request: users_model.UpdatePasswordRequest):
+    return await user_controller.update_password(request)

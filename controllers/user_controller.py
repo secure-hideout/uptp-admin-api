@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from config.postgres_config import PostgresDB  # Import your database configuration
 import models.users_model as users_model  # Import your Pydantic model
-from utils.PasswordHash import hash_password
+from utils.PasswordHash import hash_password, verify_password
 import datetime
 import secrets
 import string
@@ -263,4 +263,27 @@ async def forgot_password(request_data: users_model.ForgotPasswordRequest):
             return {"message": "A new password has been sent to your email"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+async def update_password(request_data: users_model.UpdatePasswordRequest):
+    pool = await PostgresDB.get_pool()
+    async with pool.acquire() as conn:
+        user_email = request_data.email.lower()
+        existing_user = await conn.fetchrow("SELECT * FROM user_auths WHERE email = $1", user_email)
+        if not existing_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the current password
+        if not verify_password(existing_user['password'], request_data.current_password):
+            raise HTTPException(status_code=403, detail="Current password is incorrect")
+
+        # Hash the new password
+        hashed_new_password = hash_password(request_data.new_password)
+
+        # Update the password in the database
+        await conn.execute(
+            "UPDATE user_auths SET password = $1 WHERE email = $2",
+            hashed_new_password, user_email
+        )
+
+        return {"message": "Password updated successfully"}
 

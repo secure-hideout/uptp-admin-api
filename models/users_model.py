@@ -74,3 +74,8 @@ class UserProfile(BaseModel):
 
     class Config:
         orm_mode = True
+
+class UpdatePasswordRequest(BaseModel):
+    email: EmailStr
+    current_password: str
+    new_password: str
