@@ -12,6 +12,7 @@ class Transaction(BaseModel):
     amount: Union[Decimal, None] = None
     currency: Union[str, None] = None
     is_deposit: Union[bool, None] = None
+    status: Union[bool, None] = None
 
     class Config:
         orm_mode = True

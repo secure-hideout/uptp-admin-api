@@ -100,7 +100,7 @@ async def api_delete_user(user_id: str, token: str = Depends(validate_token)):
 @router.post("/user/applyBalance")
 async def api_apply_balance(update_data: user_profile_model.UserBalanceUpdateModel = Body(...),
                             token: str = Depends(validate_token)):
-    return await user_profile_controller.update_user_balance(update_data)
+    return await user_profile_controller.update_user_balance(update_data,token)
 
 
 @router.get("/users/getCountsByUserStatus")
@@ -128,6 +128,18 @@ async def get_transactions_by_user_id(user_id: str, token: str = Depends(validat
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/alltransactions/{oversee_id}", response_model=List[transactions_model.Transaction])
+async def get_transactions(oversee_id: str, token: str = Depends(validate_token)):
+    try:
+        return await transactions_controller.fetch_transactions(oversee_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/transactions/update_status/{transaction_id}", response_model=List[transactions_model.Transaction])
+async def update_transaction_status(transaction_id: int, token: str = Depends(validate_token)):
+    # The token validation would be done in the validate_token dependency
+    updated_transaction = await transactions_controller.update_transaction_status(transaction_id)
+    return updated_transaction
 
 @router.get("/user/auth/logs/{user_id}", response_model=List[auth_model.LoginTracker])
 async def get_login_trackers(

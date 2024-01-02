@@ -4,8 +4,15 @@ import models.user_profile_model as user_profile_model  # Import your Pydantic m
 from fastapi import HTTPException
 from datetime import datetime
 from typing import List
+from utils.jwt_verify import verify_token
+from fastapi.security import OAuth2PasswordBearer
+from fastapi import HTTPException, Depends
 
-async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateModel):
+
+async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateModel, token):
+    if not token['id']:
+        raise HTTPException(status_code=400, detail="User ID not found in token")
+
     pool = await PostgresDB.get_pool()
     async with pool.acquire() as conn:
         # Check if user exists and get current balance
@@ -13,25 +20,39 @@ async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateM
         if not existing_user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        current_balance = existing_user['balance'] if existing_user['balance'] is not None else 0
-        new_balance = float(current_balance) + float(update_data.balance)
+        # Check if user_id starts with "IU"
+        if token['id'].startswith("IU"):
+            # Add record in transactions table with status false
+            transaction_query = """
+                  INSERT INTO transactions (user_id, amount, is_deposit, created_at, updated_at, currency, status)
+                  VALUES ($1, $2, $3, $4, $4, $5, $6) RETURNING *;
+              """
+            is_deposit = update_data.balance > 0
+            await conn.fetchrow(transaction_query, update_data.user_id, abs(update_data.balance), is_deposit,
+                                datetime.now(), update_data.currency, False)
+            return {"message": "Transaction recorded with status false"}
 
-        # Update the balance in the database
-        update_query = "UPDATE user_profiles SET balance = $1 WHERE user_id = $2 RETURNING *;"
-        row = await conn.fetchrow(update_query, new_balance, update_data.user_id)
-        if not row:
-            raise HTTPException(status_code=404, detail="User not found")
+        else:
+            current_balance = existing_user['balance'] if existing_user['balance'] is not None else 0
+            new_balance = float(current_balance) + float(update_data.balance)
 
-        # Add record in transactions table
-        transaction_query = """
-            INSERT INTO transactions (user_id, amount, is_deposit, created_at, updated_at, currency)
-            VALUES ($1, $2, $3, $4, $4, $5) RETURNING *;
-        """
-        is_deposit = update_data.balance > 0
-        await conn.fetchrow(transaction_query, update_data.user_id, abs(update_data.balance), is_deposit, datetime.now(), update_data.currency)
+            # Update the balance in the database
+            update_query = "UPDATE user_profiles SET balance = $1 WHERE user_id = $2 RETURNING *;"
+            row = await conn.fetchrow(update_query, new_balance, update_data.user_id)
+            if not row:
+                raise HTTPException(status_code=404, detail="User not found")
 
-        updated_user_profile = user_profile_model.UserProfile(**dict(row))
-        return updated_user_profile
+            # Add record in transactions table with status true
+            transaction_query = """
+                  INSERT INTO transactions (user_id, amount, is_deposit, created_at, updated_at, currency, status)
+                  VALUES ($1, $2, $3, $4, $4, $5, $6) RETURNING *;
+              """
+            is_deposit = update_data.balance > 0
+            await conn.fetchrow(transaction_query, update_data.user_id, abs(update_data.balance), is_deposit,
+                                datetime.now(), update_data.currency, True)
+
+            updated_user_profile = user_profile_model.UserProfile(**dict(row))
+            return updated_user_profile
 
 
 async def create_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMappingPayload):
