@@ -3,16 +3,23 @@ from typing import Optional
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Union
+from enum import Enum
+class Status(str, Enum):
+    PENDING = "Pending"
+    ACCEPTED = "Approved"
+    REJECTED = "Rejected"
+
 class Transaction(BaseModel):
-    id: Union[int, None] = None # bigserial in PostgreSQL is generally represented as an int in Python
-    created_at: Union[datetime, None] = None
-    updated_at: Union[datetime, None] = None
-    deleted_at: Union[datetime, None] = None
+    id: Optional[int] = None  # bigserial in PostgreSQL is generally represented as an int in Python
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     user_id: str
-    amount: Union[Decimal, None] = None
-    currency: Union[str, None] = None
-    is_deposit: Union[bool, None] = None
-    status: Union[bool, None] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    is_deposit: Optional[bool] = None
+    status: Status
+    email: str
 
     class Config:
         orm_mode = True

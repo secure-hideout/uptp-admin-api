@@ -50,6 +50,12 @@ async def send_otp(email: str, token: str = Depends(validate_token)):
     await send_otp_email(email, otp)
     return {"message": "OTP sent to email"}
 
+@router.get("/transactions/status-count")
+async def get_status_counts(token: str = Depends(validate_token)):
+    try:
+        return await transactions_controller.get_status_counts()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 @router.post("/verify-otp")
 async def verify_otp(email: str, otp: str, token: str = Depends(validate_token)):
     if email in otp_storage and otp_storage[email] == otp:
@@ -98,9 +104,8 @@ async def api_delete_user(user_id: str, token: str = Depends(validate_token)):
 
 
 @router.post("/user/applyBalance")
-async def api_apply_balance(update_data: user_profile_model.UserBalanceUpdateModel = Body(...),
-                            token: str = Depends(validate_token)):
-    return await user_profile_controller.update_user_balance(update_data,token)
+async def api_apply_balance(update_data: user_profile_model.UserBalanceUpdateModel = Body(...)):
+    return await user_profile_controller.update_user_balance(update_data)
 
 
 @router.get("/users/getCountsByUserStatus")
@@ -129,15 +134,16 @@ async def get_transactions_by_user_id(user_id: str, token: str = Depends(validat
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/alltransactions/{oversee_id}", response_model=List[transactions_model.Transaction])
-async def get_transactions(oversee_id: str, token: str = Depends(validate_token)):
+async def get_transactions(oversee_id: str, status: str, token: str = Depends(validate_token)):
     try:
-        return await transactions_controller.fetch_transactions(oversee_id)
+        return await transactions_controller.fetch_transactions(oversee_id, status)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.patch("/transactions/update_status/{transaction_id}", response_model=List[transactions_model.Transaction])
+@router.patch("/transactions/update_status/{transaction_id}")
 async def update_transaction_status(transaction_id: int, token: str = Depends(validate_token)):
     # The token validation would be done in the validate_token dependency
+    print("Test")
     updated_transaction = await transactions_controller.update_transaction_status(transaction_id)
     return updated_transaction
 

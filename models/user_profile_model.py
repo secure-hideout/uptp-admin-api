@@ -23,6 +23,7 @@ class UserBalanceUpdateModel(BaseModel):
     user_id: str
     balance: float
     currency: str
+    oversee_id: str
 
 class AgentTokenMapping(BaseModel):
     user_id: str

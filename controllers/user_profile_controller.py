@@ -9,10 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, Depends
 
 
-async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateModel, token):
-    if not token['id']:
-        raise HTTPException(status_code=400, detail="User ID not found in token")
-
+async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateModel):
     pool = await PostgresDB.get_pool()
     async with pool.acquire() as conn:
         # Check if user exists and get current balance
@@ -20,21 +17,36 @@ async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateM
         if not existing_user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Check if user_id starts with "IU"
-        if token['id'].startswith("IU"):
-            # Add record in transactions table with status false
-            transaction_query = """
-                  INSERT INTO transactions (user_id, amount, is_deposit, created_at, updated_at, currency, status)
-                  VALUES ($1, $2, $3, $4, $4, $5, $6) RETURNING *;
-              """
-            is_deposit = update_data.balance > 0
-            await conn.fetchrow(transaction_query, update_data.user_id, abs(update_data.balance), is_deposit,
-                                datetime.now(), update_data.currency, False)
-            return {"message": "Transaction recorded with status false"}
+        current_balance = float(existing_user['balance']) if existing_user['balance'] is not None else 0.0
 
-        else:
-            current_balance = existing_user['balance'] if existing_user['balance'] is not None else 0
-            new_balance = float(current_balance) + float(update_data.balance)
+        # Determine if the transaction is a deposit or withdrawal
+        is_deposit = update_data.balance >= 0
+
+        # If amount is negative and a withdrawal is intended, check against the current balance
+        if not is_deposit and abs(update_data.balance) > current_balance:
+            raise HTTPException(status_code=400, detail="Insufficient funds for withdrawal")
+
+        # Determine status based on oversee_id
+        status = "Pending" if update_data.oversee_id.startswith("IU") else "Approved"
+
+        # Add record in transactions table
+        transaction_query = """
+            INSERT INTO transactions (user_id, amount, is_deposit, created_at, updated_at, currency, status)
+            VALUES ($1, $2, $3, $4, $4, $5, $6) RETURNING *;
+        """
+        transaction_record = await conn.fetchrow(
+            transaction_query,
+            update_data.user_id,
+            abs(update_data.balance),  # Use the absolute value of the balance
+            is_deposit,
+            datetime.now(),
+            update_data.currency,
+            status
+        )
+
+        # If the status is 'Approved', update the balance
+        if status == "Approved":
+            new_balance = current_balance + (update_data.balance if is_deposit else -abs(update_data.balance))
 
             # Update the balance in the database
             update_query = "UPDATE user_profiles SET balance = $1 WHERE user_id = $2 RETURNING *;"
@@ -42,18 +54,11 @@ async def update_user_balance(update_data: user_profile_model.UserBalanceUpdateM
             if not row:
                 raise HTTPException(status_code=404, detail="User not found")
 
-            # Add record in transactions table with status true
-            transaction_query = """
-                  INSERT INTO transactions (user_id, amount, is_deposit, created_at, updated_at, currency, status)
-                  VALUES ($1, $2, $3, $4, $4, $5, $6) RETURNING *;
-              """
-            is_deposit = update_data.balance > 0
-            await conn.fetchrow(transaction_query, update_data.user_id, abs(update_data.balance), is_deposit,
-                                datetime.now(), update_data.currency, True)
-
             updated_user_profile = user_profile_model.UserProfile(**dict(row))
             return updated_user_profile
-
+        else:
+            # If the status is 'Pending', do not update the balance
+            return {"message": "Transaction recorded with status 'Pending'"}
 
 async def create_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMappingPayload):
     pool = await PostgresDB.get_pool()

@@ -10,15 +10,34 @@ async def fetch_transactions_by_user_id(user_id: str) -> List[transactions_model
         rows = await conn.fetch(query, user_id)
         return [transactions_model.Transaction(**dict(row)) for row in rows]
 
-async def fetch_transactions(oversee_id:str) -> List[transactions_model.Transaction]:
+async def fetch_transactions(oversee_id: str, status: str) -> List[transactions_model.Transaction]:
     pool = await PostgresDB.get_pool()
     async with pool.acquire() as conn:
-        query = "SELECT t.* FROM transactions AS t JOIN user_profiles AS u ON t.user_id = u.user_id WHERE u.oversee_user = $1 AND t.status = FALSE AND t.deleted_at IS NULL;"
-        rows = await conn.fetch(query, oversee_id)
+        if oversee_id.startswith('AU'):
+            query = """
+                   SELECT t.*, a.email as email
+                   FROM transactions AS t 
+                   JOIN user_auths AS a ON t.user_id = a.user_id 
+                   WHERE t.status = $1 
+                   AND t.deleted_at IS NULL;
+                   """
+            rows = await conn.fetch(query, status)
+        else:
+            query = """
+                   SELECT t.*, a.email 
+                   FROM transactions AS t 
+                   JOIN user_profiles AS u ON t.user_id = u.user_id 
+                   JOIN user_auths AS a ON u.user_id = a.user_id 
+                   WHERE u.oversee_user = $1 
+                   AND t.status = $2 
+                   AND t.deleted_at IS NULL;
+                   """
+            rows = await conn.fetch(query, oversee_id, status)
+
         return [transactions_model.Transaction(**dict(row)) for row in rows]
 
-
 async def update_transaction_status(transaction_id: int):
+    print('updating transaction status')
     pool = await PostgresDB.get_pool()
     async with pool.acquire() as conn:
         # Start a transaction
@@ -43,7 +62,7 @@ async def update_transaction_status(transaction_id: int):
             user_id = transaction['user_id']
             amount = float(transaction['amount'])
             is_deposit = transaction['is_deposit']
-
+            print(user_id)
             user = await conn.fetchrow(
                 "SELECT * FROM user_profiles WHERE user_id = $1", user_id
             )
@@ -59,3 +78,23 @@ async def update_transaction_status(transaction_id: int):
             )
 
             return await conn.fetchrow("SELECT * FROM transactions WHERE id = $1", transaction_id)
+
+
+async def get_status_counts() -> dict[str, int]:
+    pool = await PostgresDB.get_pool()
+    async with pool.acquire() as conn:
+        query = """
+               SELECT status, COUNT(*) AS count
+               FROM transactions 
+               WHERE status IN ('Approved', 'Rejected', 'Pending') 
+               GROUP BY status;
+               """
+        rows = await conn.fetch(query)
+
+        # Initialize a dictionary to store the counts
+        status_counts = {'Approved': 0, 'Rejected': 0, 'Pending': 0}
+
+        for row in rows:
+            status_counts[row['status']] = row['count']
+
+        return status_counts
