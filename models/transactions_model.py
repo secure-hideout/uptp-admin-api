@@ -19,7 +19,7 @@ class Transaction(BaseModel):
     currency: Optional[str] = None
     is_deposit: Optional[bool] = None
     status: Status
-    email: str
+    email: Optional[str]= None
 
     class Config:
         orm_mode = True

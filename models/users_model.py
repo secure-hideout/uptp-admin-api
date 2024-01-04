@@ -29,7 +29,7 @@ class UserGet(BaseModel):
     first_name: Union[str, None] = None
     last_name: Union[str, None] = None
     is_active: Union[str, None] = None  # New field
-    balance: Union[Decimal, None] = None
+    balance: Optional[float] = None
 
     @staticmethod
     def to_str(value: Decimal) -> str:
@@ -77,5 +77,10 @@ class UserProfile(BaseModel):
 
 class UpdatePasswordRequest(BaseModel):
     email: EmailStr
+    current_password: str
+    new_password: str
+
+class UpdatePasswordRequestUserId(BaseModel):
+    userId: str
     current_password: str
     new_password: str

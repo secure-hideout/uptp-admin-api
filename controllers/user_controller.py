@@ -23,7 +23,7 @@ async def read_users_by_oversee_user(oversee_user_id: Union[str, None]=None):
             rows = await conn.fetch(query, oversee_user_id)
         else:
             # Fetch all users
-            query = "SELECT * FROM user_auths;"
+            query = "SELECT * FROM user_auths WHERE user_id LIKE 'IU%'"
             rows = await conn.fetch(query)
 
         return [users_model.UserGet(**dict(row)) for row in rows]
@@ -283,6 +283,29 @@ async def update_password(request_data: users_model.UpdatePasswordRequest):
         await conn.execute(
             "UPDATE user_auths SET password = $1 WHERE email = $2",
             hashed_new_password, user_email
+        )
+
+        return {"message": "Password updated successfully"}
+
+async def update_password_userid(request_data: users_model.UpdatePasswordRequestUserId):
+    pool = await PostgresDB.get_pool()
+    async with pool.acquire() as conn:
+        user_id = request_data.userId
+        existing_user = await conn.fetchrow("SELECT * FROM user_auths WHERE user_id = $1", user_id)
+        if not existing_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the current password
+        if not verify_password(existing_user['password'], request_data.current_password):
+            raise HTTPException(status_code=403, detail="Current password is incorrect")
+
+        # Hash the new password
+        hashed_new_password = hash_password(request_data.new_password)
+
+        # Update the password in the database
+        await conn.execute(
+            "UPDATE user_auths SET password = $1 WHERE user_id = $2",
+            hashed_new_password, user_id
         )
 
         return {"message": "Password updated successfully"}

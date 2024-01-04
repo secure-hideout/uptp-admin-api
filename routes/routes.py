@@ -29,6 +29,12 @@ async def validate_token(http_auth: HTTPAuthorizationCredentials = Security(secu
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
+@router.get("/transactions/status-count")
+async def get_status_counts(token: str = Depends(validate_token)):
+    try:
+        return await transactions_controller.get_status_counts()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 async def send_otp_email(email: str, otp: str):
     send_mail.send_email(
         subject="OTP UPTP",
@@ -43,19 +49,24 @@ async def send_otp_email(email: str, otp: str):
         template_name="onetimeOTP.html",
     )
 
+@router.get("/transactions/{user_id}")
+async def get_transactions_by_user_id(user_id: str, token: str = Depends(validate_token)):
+    try:
+        return await transactions_controller.fetch_transactions_by_user_id(user_id)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/send-otp")
 async def send_otp(email: str, token: str = Depends(validate_token)):
     otp = generate_otp()
     otp_storage[email] = otp
     await send_otp_email(email, otp)
     return {"message": "OTP sent to email"}
+@router.post("/update-password-userid")
+async def update_password_endpoint_userid(request: users_model.UpdatePasswordRequest):
+    return await user_controller.update_password_userid(request)
 
-@router.get("/transactions/status-count")
-async def get_status_counts(token: str = Depends(validate_token)):
-    try:
-        return await transactions_controller.get_status_counts()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 @router.post("/verify-otp")
 async def verify_otp(email: str, otp: str, token: str = Depends(validate_token)):
     if email in otp_storage and otp_storage[email] == otp:
@@ -126,13 +137,6 @@ async def get_trades_by_user_id(user_id: str, token: str = Depends(validate_toke
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/transactions/{user_id}", response_model=List[transactions_model.Transaction])
-async def get_transactions_by_user_id(user_id: str, token: str = Depends(validate_token)):
-    try:
-        return await transactions_controller.fetch_transactions_by_user_id(user_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.get("/alltransactions/{oversee_id}", response_model=List[transactions_model.Transaction])
 async def get_transactions(oversee_id: str, status: str, token: str = Depends(validate_token)):
     try:
@@ -141,10 +145,8 @@ async def get_transactions(oversee_id: str, status: str, token: str = Depends(va
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/transactions/update_status/{transaction_id}")
-async def update_transaction_status(transaction_id: int, token: str = Depends(validate_token)):
-    # The token validation would be done in the validate_token dependency
-    print("Test")
-    updated_transaction = await transactions_controller.update_transaction_status(transaction_id)
+async def update_transaction_status(transaction_id: int, status: str, token: str = Depends(validate_token)):
+    updated_transaction = await transactions_controller.update_transaction_status(transaction_id, status)
     return updated_transaction
 
 @router.get("/user/auth/logs/{user_id}", response_model=List[auth_model.LoginTracker])
