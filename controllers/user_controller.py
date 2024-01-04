@@ -141,7 +141,7 @@ async def update_user(update_data: users_model.UserUpdateModel):
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
 
-        updated_user = users_model.User(**dict(row))
+        updated_user = users_model.UserGet(**dict(row))
         return updated_user
 
 async def delete_user(delete_data: users_model.UserDeleteModel):

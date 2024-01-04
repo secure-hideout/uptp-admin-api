@@ -102,7 +102,7 @@ async def create_user(user_data: users_model.User):
     return await user_controller.create_user(user_data)
 
 
-@router.patch("/user", response_model=users_model.User)
+@router.patch("/user", response_model=users_model.UserGet)
 async def update_user_endpoint(update_data: users_model.UserUpdateModel, token: str = Depends(validate_token)):
     return await user_controller.update_user(update_data)
 
