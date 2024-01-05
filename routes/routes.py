@@ -64,7 +64,7 @@ async def send_otp(email: str, token: str = Depends(validate_token)):
     await send_otp_email(email, otp)
     return {"message": "OTP sent to email"}
 @router.post("/update-password-userid")
-async def update_password_endpoint_userid(request: users_model.UpdatePasswordRequest):
+async def update_password_endpoint_userid(request: users_model.UpdatePasswordRequestUserId):
     return await user_controller.update_password_userid(request)
 
 @router.post("/verify-otp")
