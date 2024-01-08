@@ -57,73 +57,6 @@ async def get_transactions_by_user_id(user_id: str, token: str = Depends(validat
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/send-otp")
-async def send_otp(email: str, token: str = Depends(validate_token)):
-    otp = generate_otp()
-    otp_storage[email] = otp
-    await send_otp_email(email, otp)
-    return {"message": "OTP sent to email"}
-@router.post("/update-password-userid")
-async def update_password_endpoint_userid(request: users_model.UpdatePasswordRequestUserId):
-    return await user_controller.update_password_userid(request)
-
-@router.post("/verify-otp")
-async def verify_otp(email: str, otp: str, token: str = Depends(validate_token)):
-    if email in otp_storage and otp_storage[email] == otp:
-        del otp_storage[email]  # Remove the OTP after successful verification
-        return {"message": "OTP verified successfully"}
-    else:
-        raise HTTPException(status_code=400, detail="Invalid OTP")
-
-@router.post("/login")
-async def login(form_data: auth_model.LoginRequest):
-    return await auth_controller.login_for_access_token(form_data)
-
-@router.post("/forgot-password")
-async def forgot_password_endpoint(request: users_model.ForgotPasswordRequest):
-    return await user_controller.forgot_password(request)
-
-@router.get("/users", response_model=List[users_model.UserGet])
-async def getAll(user_id: str = Query(None), token: str = Depends(validate_token)):
-    return await user_controller.read_users_by_oversee_user(user_id)
-
-
-@router.get("/users/by", response_model=List[users_model.UserGet])
-async def get_users_by_filter(user_role: str = Query(None), is_active: str = Query(None),
-                              token: str = Depends(validate_token)):
-    try:
-        return await user_controller.fetch_users_by_filter(user_role, is_active)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/user", response_model=users_model.UserGet)
-async def create_user(user_data: users_model.User):
-    return await user_controller.create_user(user_data)
-
-
-@router.patch("/user", response_model=users_model.UserGet)
-async def update_user_endpoint(update_data: users_model.UserUpdateModel, token: str = Depends(validate_token)):
-    return await user_controller.update_user(update_data)
-
-
-@router.delete("/user/{user_id}", response_model=users_model.UserGet)
-async def api_delete_user(user_id: str, token: str = Depends(validate_token)):
-    print(user_id)
-    delete_data = users_model.UserDeleteModel(user_id=user_id)
-    return await user_controller.delete_user(delete_data)
-
-
-@router.post("/user/applyBalance")
-async def api_apply_balance(update_data: user_profile_model.UserBalanceUpdateModel = Body(...)):
-    return await user_profile_controller.update_user_balance(update_data)
-
-
-@router.get("/users/getCountsByUserStatus")
-async def api_get_user_counts(user_id: str = Query(None), token: str = Depends(validate_token)):
-    return await user_controller.api_get_user_counts(user_id)
-
-
 @router.get("/agents/getCountsByAgentStatus")
 async def api_get_agent_counts(token: str = Depends(validate_token)):
     return await user_controller.api_get_agent_counts()
@@ -172,7 +105,3 @@ async def add_agent_token_mapping(mapping_data: user_profile_model.AgentTokenMap
 @router.get("/zinstruments", response_model=List[trades_model.ZInstrument])
 async def fetch_all_zinstruments(token: str = Depends(validate_token)):
     return await trades_controller.get_all_zinstruments()
-
-@router.post("/update-password")
-async def update_password_endpoint(request: users_model.UpdatePasswordRequest):
-    return await user_controller.update_password(request)

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config.postgres_config import PostgresDB
-from routes.routes import router
+from routes.index import main_router as router
 
 app = FastAPI()
 
