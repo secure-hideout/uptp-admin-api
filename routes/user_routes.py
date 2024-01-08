@@ -46,7 +46,7 @@ async def create_user(user_data: users_model.User):
 async def api_apply_balance(update_data: user_profile_model.UserBalanceUpdateModel = Body(...)):
     return await user_profile_controller.update_user_balance(update_data)
 
-@router.patch("/user", response_model=users_model.User)
+@router.patch("/user")
 async def update_user_endpoint(update_data: users_model.UserUpdateModel, token: str = Depends(validate_token)):
     return await user_controller.update_user(update_data)
 

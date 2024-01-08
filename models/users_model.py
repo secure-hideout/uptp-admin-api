@@ -49,6 +49,7 @@ class UserUpdateModel(BaseModel):
     first_name: Union[str, None] = None
     last_name: Union[str, None] = None
     is_active: Union[str, None] = None  # New field
+    config: Union[dict, None] = None
 
 class UserDeleteModel(BaseModel):
     user_id: str

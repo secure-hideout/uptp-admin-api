@@ -111,38 +111,44 @@ async def create_user(user_data):  # Type the parameter with your Pydantic model
         print(user_data)
         return {"message": "User created successfully", "user_id": user_id}
 
-async def update_user(update_data: users_model.UserUpdateModel):
+async def update_user(update_data):
     pool = await PostgresDB.get_pool()
     async with pool.acquire() as conn:
-        # Check if user exists
-        existing_user = await conn.fetchrow("SELECT * FROM user_auths WHERE user_id = $1", update_data.user_id)
-        if not existing_user:
-            raise HTTPException(status_code=404, detail="User not found")
+        async with conn.transaction():
+            # Update user_auths table
+            update_auth_fields = {k: v for k, v in update_data.dict().items() if v is not None and k in {'email', 'first_name', 'last_name', 'user_role'}}
+            if update_auth_fields:
+                update_auth_query = ", ".join([f"{key} = ${i+2}" for i, key in enumerate(update_auth_fields.keys())])
+                auth_query = f"UPDATE user_auths SET {update_auth_query}, updated_at = $1 WHERE user_id = $2 RETURNING *;"
+                auth_values = [datetime.datetime.now(), update_data.user_id] + list(update_auth_fields.values())
+                updated_auth = await conn.fetchrow(auth_query, *auth_values)
+                if not updated_auth:
+                    raise HTTPException(status_code=404, detail="User not found in auths")
 
-        # Update query
-        update_fields = {k: v for k, v in update_data.dict(exclude={'user_id'}).items() if v is not None}
-        if not update_fields:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            # Assuming you want to update first_name and last_name in user_profiles table
+            update_profile_fields = {k: v for k, v in update_data.dict().items() if v is not None and k in {'first_name', 'last_name'}}
+            if update_profile_fields:
+                update_profile_query = ", ".join([f"{key} = ${i+2}" for i, key in enumerate(update_profile_fields.keys())])
+                profile_query = f"UPDATE user_profiles SET {update_profile_query}, updated_at = $1 WHERE user_id = $2 RETURNING *;"
+                profile_values = [datetime.datetime.now(), update_data.user_id] + list(update_profile_fields.values())
+                updated_profile = await conn.fetchrow(profile_query, *profile_values)
+                if not updated_profile:
+                    raise HTTPException(status_code=404, detail="User not found in profiles")
 
-        # Check if email is being updated and is unique
-        if 'email' in update_fields:
-            email = update_fields['email'].lower()
-            email_exists = await conn.fetchrow("SELECT * FROM user_auths WHERE email = $1 AND user_id != $2", email, update_data.user_id)
-            if email_exists:
-                raise HTTPException(status_code=400, detail="Email already exists")
+            # Update users_config table
+            if 'config' in update_data.dict():
+                await conn.execute("DELETE FROM users_config WHERE user_id = $1", update_data.user_id)
+                config_insert_query = "INSERT INTO users_config(user_id, type, conf, value) VALUES ($1, $2, $3, $4)"
+                for config_type, configs in update_data.config.items():
+                    for conf_key, conf_value in configs.items():
+                        await conn.execute(config_insert_query, update_data.user_id, config_type, conf_key, conf_value)
 
-        update_query = ", ".join([f"{key} = ${i+3}" for i, key in enumerate(update_fields.keys())])
-        query = f"UPDATE user_auths SET {update_query}, updated_at = $1 WHERE user_id = $2 RETURNING *;"
-
-        values = [datetime.datetime.now(), update_data.user_id] + list(update_fields.values())
-
-        row = await conn.fetchrow(query, *values)
-
-        if not row:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        updated_user = users_model.UserGet(**dict(row))
-        return updated_user
+            return {
+                "user_id": update_data.user_id,
+                "updated_auth": dict(updated_auth) if 'updated_auth' in locals() else {},
+                "updated_profile": dict(updated_profile) if 'updated_profile' in locals() else {},
+                "message": "User updated successfully"
+            }
 
 async def delete_user(delete_data: users_model.UserDeleteModel):
     pool = await PostgresDB.get_pool()
