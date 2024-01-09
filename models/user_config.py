@@ -20,10 +20,10 @@ class ConfigItem(BaseModel):
 
 class CreateUserConfigRequest(BaseModel):
     user_id: str
-    first_name: str
-    last_name: str
-    email: EmailStr
-    user_role: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    user_role: Optional[str] = None
     config: Dict[str, ConfigItem]
 
 class UserConfigResponse(BaseModel):
@@ -32,4 +32,8 @@ class UserConfigResponse(BaseModel):
 
 class UserConfigRequest(BaseModel):
     user_id: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    user_role: Optional[str] = None
     config: Dict[str, ConfigItem]
