@@ -26,7 +26,7 @@ async def validate_token(http_auth: HTTPAuthorizationCredentials = Security(secu
     return payload
 
 @router.post("/create-ticket")
-async def create_user(ticket_data: support_model.SupportModel):
+async def create_ticket(ticket_data: support_model.SupportModel):
     return await support_controller.create_ticket(ticket_data)
 
 @router.patch("/update-ticket/{ticket_id}", response_model=support_model.SupportModel)
@@ -45,3 +45,7 @@ async def get_all_tickets(token: str = Depends(validate_token)):
 @router.get("/tickets/status-counts", response_model=dict[str, int])
 async def get_ticket_status_counts(token: str = Depends(validate_token)):
     return await support_controller.get_ticket_status_counts()
+
+@router.get("/tickets/by-user/{user_id}", response_model=List[support_model.SupportModel])
+async def get_tickets_by_user(user_id: str):
+    return await support_controller.get_tickets_by_user(user_id)

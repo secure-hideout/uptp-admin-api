@@ -94,3 +94,16 @@ async def get_ticket_status_counts():
             status_counts[record['status']] = record['count']
 
         return status_counts
+
+async def get_tickets_by_user(user_id: str):
+    pool = await PostgresDB.get_pool()
+    async with pool.acquire() as conn:
+        query = """
+            SELECT * FROM tickets 
+            WHERE user_id = $1;
+        """
+        tickets_records = await conn.fetch(query, user_id)
+
+        # Convert the list of records to a list of dictionaries
+        tickets_list = [dict(record) for record in tickets_records]
+        return tickets_list
