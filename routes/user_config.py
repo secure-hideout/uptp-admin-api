@@ -16,7 +16,7 @@ import controllers.user_controller as user_controller, controllers.user_profile_
     controllers.auth_controller as auth_controller, controllers.user_config as user_config_controller
 router = APIRouter()
 
-
+security = HTTPBearer()
 async def validate_token(http_auth: HTTPAuthorizationCredentials = Security(security)):
     token = http_auth.credentials
     payload = verify_token(token)  # Replace 'YourSecretKey' with your actual secret key
