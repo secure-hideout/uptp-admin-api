@@ -81,13 +81,19 @@ async def upsert_user_config(request_data: user_config.UserConfigRequest):
         for config_type, config_items in request_data.config.items():
             for conf, value in config_items.dict().items():
                 if value is not None:
-                    # Perform upsert for each configuration item
-                    query = """
-                        INSERT INTO users_config (user_id, type, conf, value)
-                        VALUES ($1, $2, $3, $4)
-                        ON CONFLICT (user_id, type, conf)
-                        DO UPDATE SET value = EXCLUDED.value;
-                    """
-                    await conn.execute(query, request_data.user_id, config_type, conf, value)
+                    if value != "":  # Perform upsert for non-empty values
+                        query = """
+                            INSERT INTO users_config (user_id, type, conf, value)
+                            VALUES ($1, $2, $3, $4)
+                            ON CONFLICT (user_id, type, conf)
+                            DO UPDATE SET value = EXCLUDED.value;
+                        """
+                        await conn.execute(query, request_data.user_id, config_type, conf, value)
+                    else:  # Delete the row if value is an empty string
+                        delete_query = """
+                            DELETE FROM users_config
+                            WHERE user_id = $1 AND type = $2 AND conf = $3;
+                        """
+                        await conn.execute(delete_query, request_data.user_id, config_type, conf)
 
         return {"message": "User configurations updated successfully"}
